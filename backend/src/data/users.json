@@ -1,0 +1,15 @@
+[
+    {
+      "id": "f0d4f7a0-48b2-44c1-b9d2-3dbab80e4f1c",
+      "name": "Ali Reza",
+      "email": "ali.reza@example.com",
+      "password": "$2b$10$F0dR5BGy0E1ZQyY0T6o8j.p4T1ScjY1yGmO1YhbZulAfeVoIbmghm",  
+      "role": "user",
+      "photo": "https://example.com/photo.jpg",
+      "bio": "A software developer and tech enthusiast.",
+      "isVerified": true,
+      "resetPasswordToken": null,
+      "resetPasswordExpires": null
+    }
+  ]
+  

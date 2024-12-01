@@ -1,69 +1,68 @@
 import asyncHandler from "express-async-handler";
 import jwt from "jsonwebtoken";
-import User from "../models/auth/UserModel.js";
+import fs from "fs";
+import path from "path";
 
+// بارگذاری داده‌های کاربران از فایل JSON
+const usersData = JSON.parse(fs.readFileSync(path.resolve("data", "users.json")));
+
+// Middleware برای احراز هویت و تایید توکن
 export const protect = asyncHandler(async (req, res, next) => {
   try {
-    // check if user is logged in
+    // بررسی وجود توکن در کوکی
     const token = req.cookies.token;
 
     if (!token) {
-      // 401 Unauthorized
       res.status(401).json({ message: "Not authorized, please login!" });
+      return;
     }
 
-    // verify the token
+    // اعتبارسنجی توکن
     const decoded = jwt.verify(token, "mysecretkey");
 
-    // get user details from the token ----> exclude password
-    const user = await User.findById(decoded.id).select("-password");
+    // جستجو برای کاربر در فایل JSON بر اساس ID
+    const user = usersData.find(u => u.id === decoded.id);
 
-    // check if user exists
     if (!user) {
       res.status(404).json({ message: "User not found!" });
+      return;
     }
 
-    // set user details in the request object
+    // قرار دادن اطلاعات کاربر در درخواست
     req.user = user;
 
     next();
   } catch (error) {
-    // 401 Unauthorized
     res.status(401).json({ message: "Not authorized, token failed!" });
   }
 });
 
-// admin middleware
+// Middleware برای تایید اینکه کاربر ادمین است
 export const adminMiddleware = asyncHandler(async (req, res, next) => {
   if (req.user && req.user.role === "admin") {
-    // if user is admin, move to the next middleware/controller
     next();
     return;
   }
-  // if not admin, send 403 Forbidden --> terminate the request
   res.status(403).json({ message: "Only admins can do this!" });
 });
 
+// Middleware برای تایید اینکه کاربر دارای نقش "creator" یا "admin" است
 export const creatorMiddleware = asyncHandler(async (req, res, next) => {
   if (
     (req.user && req.user.role === "creator") ||
     (req.user && req.user.role === "admin")
   ) {
-    // if user is creator, move to the next middleware/controller
     next();
     return;
   }
-  // if not creator, send 403 Forbidden --> terminate the request
   res.status(403).json({ message: "Only creators can do this!" });
 });
 
-// verified middleware
+// Middleware برای تایید اینکه کاربر ایمیل خود را تایید کرده است
 export const verifiedMiddleware = asyncHandler(async (req, res, next) => {
   if (req.user && req.user.isVerified) {
-    // if user is verified, move to the next middleware/controller
     next();
     return;
   }
-  // if not verified, send 403 Forbidden --> terminate the request
   res.status(403).json({ message: "Please verify your email address!" });
 });

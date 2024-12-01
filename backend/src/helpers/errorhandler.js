@@ -1,4 +1,4 @@
-// error handler middleware
+// errorhandler.js
 const errorHandler = (err, req, res, next) => {
   // check if response headers have already been sent to the client
   if (res.headersSent) {

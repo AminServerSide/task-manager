@@ -1,3 +1,4 @@
+//sendemail.js
 import nodeMailer from "nodemailer";
 import path from "path";
 import dotenv from "dotenv";

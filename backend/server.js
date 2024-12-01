@@ -1,56 +1,47 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import connect from "./src/db/connect.js";
 import cookieParser from "cookie-parser";
-import fs from "node:fs";
-import errorHandler from "./src/helpers/errorhandler.js";
+import fs from "fs";
+import path from "path";
+import userRoutes from "./src/routes/userRoutes.js"; // روت‌های کاربری
+import errorHandler from "./src/helpers/errorhandler.js"; // مدیریت خطا
 
-dotenv.config();
-
-const port = 3000|| 8000;
+dotenv.config(); // بارگذاری متغیرهای محیطی
 
 const app = express();
+
+// پورت سرور
+const port = process.env.PORT || 8000;
 
 // middleware
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "http://localhost:3000", // آدرس frontend شما
     credentials: true,
   })
 );
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.use(express.json()); // برای پردازش JSON در درخواست‌ها
+app.use(express.urlencoded({ extended: true })); // برای پردازش داده‌های فرم
+app.use(cookieParser()); // برای کار با کوکی‌ها
 
-// error handler middleware
+// استفاده از روت‌های کاربری
+app.use("/api/users", userRoutes); // مسیر اصلی روت‌های کاربری، به /api/users اضافه شده است
+
+// middleware مدیریت خطا
 app.use(errorHandler);
 
-//routes
-const routeFiles = fs.readdirSync("./src/routes");
-
-routeFiles.forEach((file) => {
-  // use dynamic import
-  import(`./src/routes/${file}`)
-    .then((route) => {
-      app.use("/api/v1", route.default);
-    })
-    .catch((err) => {
-      console.log("Failed to load route file", err);
-    });
-});
-
+// راه‌اندازی سرور
 const server = async () => {
   try {
-    await connect();
-
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);
     });
   } catch (error) {
-    console.log("Failed to strt server.....", error.message);
+    console.error("Failed to start server...", error.message);
     process.exit(1);
   }
 };
 
+// شروع سرور
 server();

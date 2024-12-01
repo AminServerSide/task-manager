@@ -1,9 +1,12 @@
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 
-//use user id to generate token
+// بارگذاری متغیرهای محیطی از فایل .env
+dotenv.config();
+
+// استفاده از شناسه کاربر برای ایجاد توکن
 const generateToken = (id) => {
-  // token must be returned to the client
-  return jwt.sign({ id }, "mysecretkey", {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
 };

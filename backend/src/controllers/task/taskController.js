@@ -1,169 +1,149 @@
 import asyncHandler from "express-async-handler";
-import TaskModel from "../../models/tasks/TaskModel.js";
+import fs from "fs/promises";
+import path from "path";
 
+// مسیر فایل JSON
+const filePath = path.resolve("data/tasks.json");
+
+// کمک‌کننده برای خواندن فایل JSON
+const readTasks = async () => {
+  try {
+    const data = await fs.readFile(filePath, "utf8");
+    return JSON.parse(data);
+  } catch (error) {
+    return []; // اگر فایل وجود ندارد یا خطایی رخ داد، یک آرایه خالی برگردانید
+  }
+};
+
+// کمک‌کننده برای نوشتن در فایل JSON
+const writeTasks = async (tasks) => {
+  await fs.writeFile(filePath, JSON.stringify(tasks, null, 2), "utf8");
+};
+
+// ایجاد یک تسک
 export const createTask = asyncHandler(async (req, res) => {
-  try {
-    const { title, description, dueDate, priority, status } = req.body;
+  const { title, description, dueDate, priority, status } = req.body;
 
-    if (!title || title.trim() === "") {
-      res.status(400).json({ message: "Title is required!" });
-    }
-
-    if (!description || description.trim() === "") {
-      res.status(400).json({ message: "Description is required!" });
-    }
-
-    const task = new TaskModel({
-      title,
-      description,
-      dueDate,
-      priority,
-      status,
-      user: req.user._id,
-    });
-
-    await task.save();
-
-    res.status(201).json(task);
-  } catch (error) {
-    console.log("Error in createTask: ", error.message);
-    res.status(500).json({ message: error.message });
+  if (!title || title.trim() === "") {
+    return res.status(400).json({ message: "Title is required!" });
   }
+
+  if (!description || description.trim() === "") {
+    return res.status(400).json({ message: "Description is required!" });
+  }
+
+  const tasks = await readTasks();
+  const newTask = {
+    id: Date.now().toString(),
+    title,
+    description,
+    dueDate,
+    priority,
+    status,
+    user: req.user._id,
+  };
+
+  tasks.push(newTask);
+  await writeTasks(tasks);
+
+  res.status(201).json(newTask);
 });
 
+// دریافت تمام تسک‌ها
 export const getTasks = asyncHandler(async (req, res) => {
-  try {
-    const userId = req.user._id;
+  const userId = req.user._id;
+  const tasks = await readTasks();
+  const userTasks = tasks.filter((task) => task.user === userId);
 
-    if (!userId) {
-      res.status(400).json({ message: "User not found!" });
-    }
-
-    const tasks = await TaskModel.find({ user: userId });
-
-    res.status(200).json({
-      length: tasks.length,
-      tasks,
-    });
-  } catch (error) {
-    console.log("Error in getTasks: ", error.message);
-    res.status(500).json({ message: error.message });
-  }
+  res.status(200).json({
+    length: userTasks.length,
+    tasks: userTasks,
+  });
 });
 
+// دریافت تسک مشخص
 export const getTask = asyncHandler(async (req, res) => {
-  try {
-    const userId = req.user._id;
+  const { id } = req.params;
+  const userId = req.user._id;
 
-    const { id } = req.params;
+  const tasks = await readTasks();
+  const task = tasks.find((task) => task.id === id);
 
-    if (!id) {
-      res.status(400).json({ message: "Please provide a task id" });
-    }
-
-    const task = await TaskModel.findById(id);
-
-    if (!task) {
-      res.status(404).json({ message: "Task not found!" });
-    }
-
-    if (!task.user.equals(userId)) {
-      res.status(401).json({ message: "Not authorized!" });
-    }
-
-    res.status(200).json(task);
-  } catch (error) {
-    console.log("Error in getTask: ", error.message);
-    res.status(500).json({ message: error.message });
+  if (!task) {
+    return res.status(404).json({ message: "Task not found!" });
   }
+
+  if (task.user !== userId) {
+    return res.status(401).json({ message: "Not authorized!" });
+  }
+
+  res.status(200).json(task);
 });
 
+// ویرایش تسک
 export const updateTask = asyncHandler(async (req, res) => {
-  try {
-    const userId = req.user._id;
+  const { id } = req.params;
+  const userId = req.user._id;
+  const { title, description, dueDate, priority, status, completed } = req.body;
 
-    const { id } = req.params;
-    const { title, description, dueDate, priority, status, completed } =
-      req.body;
+  const tasks = await readTasks();
+  const taskIndex = tasks.findIndex((task) => task.id === id);
 
-    if (!id) {
-      res.status(400).json({ message: "Please provide a task id" });
-    }
-
-    const task = await TaskModel.findById(id);
-
-    if (!task) {
-      res.status(404).json({ message: "Task not found!" });
-    }
-
-    // check if the user is the owner of the task
-    if (!task.user.equals(userId)) {
-      res.status(401).json({ message: "Not authorized!" });
-    }
-
-    // update the task with the new data if provided or keep the old data
-    task.title = title || task.title;
-    task.description = description || task.description;
-    task.dueDate = dueDate || task.dueDate;
-    task.priority = priority || task.priority;
-    task.status = status || task.status;
-    task.completed = completed || task.completed;
-
-    await task.save();
-
-    return res.status(200).json(task);
-  } catch (error) {
-    console.log("Error in updateTask: ", error.message);
-    res.status(500).json({ message: error.message });
+  if (taskIndex === -1) {
+    return res.status(404).json({ message: "Task not found!" });
   }
+
+  const task = tasks[taskIndex];
+
+  if (task.user !== userId) {
+    return res.status(401).json({ message: "Not authorized!" });
+  }
+
+  tasks[taskIndex] = {
+    ...task,
+    title: title || task.title,
+    description: description || task.description,
+    dueDate: dueDate || task.dueDate,
+    priority: priority || task.priority,
+    status: status || task.status,
+    completed: completed !== undefined ? completed : task.completed,
+  };
+
+  await writeTasks(tasks);
+
+  res.status(200).json(tasks[taskIndex]);
 });
 
+// حذف تسک
 export const deleteTask = asyncHandler(async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { id } = req.params;
+  const { id } = req.params;
+  const userId = req.user._id;
 
-    const task = await TaskModel.findById(id);
+  const tasks = await readTasks();
+  const task = tasks.find((task) => task.id === id);
 
-    if (!task) {
-      res.status(404).json({ message: "Task not found!" });
-    }
-
-    // check if the user is the owner of the task
-    if (!task.user.equals(userId)) {
-      res.status(401).json({ message: "Not authorized!" });
-    }
-
-    await TaskModel.findByIdAndDelete(id);
-
-    return res.status(200).json({ message: "Task deleted successfully!" });
-  } catch (error) {
-    console.log("Error in deleteTask: ", error.message);
-    res.status(500).json({ message: error.message });
+  if (!task) {
+    return res.status(404).json({ message: "Task not found!" });
   }
+
+  if (task.user !== userId) {
+    return res.status(401).json({ message: "Not authorized!" });
+  }
+
+  const updatedTasks = tasks.filter((task) => task.id !== id);
+  await writeTasks(updatedTasks);
+
+  res.status(200).json({ message: "Task deleted successfully!" });
 });
 
-/// Nuclear option for deleting all tasks
+// حذف تمام تسک‌ها
 export const deleteAllTasks = asyncHandler(async (req, res) => {
-  try {
-    const userId = req.user._id;
+  const userId = req.user._id;
 
-    const tasks = await TaskModel.find({ user: userId });
+  const tasks = await readTasks();
+  const updatedTasks = tasks.filter((task) => task.user !== userId);
 
-    if (!tasks) {
-      res.status(404).json({ message: "No tasks found!" });
-    }
+  await writeTasks(updatedTasks);
 
-    // check if the user is the owner of the task
-    if (!tasks.user.equals(userId)) {
-      res.status(401).json({ message: "Not authorized!" });
-    }
-
-    await TaskModel.deleteMany({ user: userId });
-
-    return res.status(200).json({ message: "All tasks deleted successfully!" });
-  } catch (error) {
-    console.log("Error in deleteAllTasks: ", error.message);
-    res.status(500).json({ message: error.message });
-  }
+  res.status(200).json({ message: "All tasks deleted successfully!" });
 });

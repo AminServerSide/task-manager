@@ -24,34 +24,43 @@ import {
 
 const router = express.Router();
 
+// ثبت نام کاربر جدید
 router.post("/register", registerUser);
+
+// ورود به سیستم
 router.post("/login", loginUser);
+
+// خروج از سیستم
 router.get("/logout", logoutUser);
+
+// دریافت اطلاعات کاربر
 router.get("/user", protect, getUser);
+
+// بروزرسانی اطلاعات کاربر
 router.patch("/user", protect, updateUser);
 
-// admin route
-router.delete("/admin/users/:id", protect, adminMiddleware, deleteUser);
+// تغییر رمز عبور
+router.patch("/change-password", protect, changePassword);
 
-// get all users
-router.get("/admin/users", protect, creatorMiddleware, getAllUsers);
-
-// login status
-router.get("/login-status", userLoginStatus);
-
-// email verification
-router.post("/verify-email", protect, verifyEmail);
-
-// veriify user --> email verification
-router.post("/verify-user/:verificationToken", verifyUser);
-
-// forgot password
+// درخواست تغییر رمز عبور (فراموشی رمز عبور)
 router.post("/forgot-password", forgotPassword);
 
-//reset password
+// ریست کردن رمز عبور
 router.post("/reset-password/:resetPasswordToken", resetPassword);
 
-// change password ---> user must be logged in
-router.patch("/change-password", protect, changePassword);
+// عملیات مدیریت (فقط مدیران)
+router.delete("/admin/users/:id", protect, adminMiddleware, deleteUser);
+
+// دریافت تمام کاربران (فقط برای سازندگان یا مدیران)
+router.get("/admin/users", protect, creatorMiddleware, getAllUsers);
+
+// وضعیت ورود
+router.get("/login-status", userLoginStatus);
+
+// تایید ایمیل
+router.post("/verify-email", protect, verifyEmail);
+
+// تایید کاربر با کد تایید ایمیل
+router.post("/verify-user/:verificationToken", verifyUser);
 
 export default router;

@@ -1,3 +1,4 @@
+//hashtoken.js
 import crypto from "node:crypto";
 
 const hashToken = (token) => {

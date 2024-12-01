@@ -1,133 +1,126 @@
 import asyncHandler from "express-async-handler";
-import User from "../../models/auth/UserModel.js";
-import generateToken from "../../helpers/generateToken.js";
+import fs from "fs/promises";
+import path from "path";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import Token from "../../models/auth/Token.js";
 import crypto from "node:crypto";
-import hashToken from "../../helpers/hashToken.js";
-import sendEmail from "../../helpers/sendEmail.js";
 
+const usersFilePath = path.join("data", "users.json");
+
+// توابع کمکی
+const readUsersFromFile = async () => {
+  try {
+    const data = await fs.readFile(usersFilePath, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+};
+
+const writeUsersToFile = async (users) => {
+  try {
+    await fs.writeFile(usersFilePath, JSON.stringify(users, null, 2), "utf-8");
+  } catch (error) {
+    throw new Error("Error writing to users file");
+  }
+};
+
+// تولید توکن
+const generateToken = (id) => {
+  return jwt.sign({ id }, "mysecretkey", { expiresIn: "30d" });
+};
+
+// **ثبت نام کاربر**
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
 
-  //validation
   if (!name || !email || !password) {
-    // 400 Bad Request
-    res.status(400).json({ message: "All fields are required" });
+    return res.status(400).json({ message: "All fields are required" });
   }
 
-  // check password length
   if (password.length < 6) {
     return res
       .status(400)
       .json({ message: "Password must be at least 6 characters" });
   }
 
-  // check if user already exists
-  const userExists = await User.findOne({ email });
+  const users = await readUsersFromFile();
+  const userExists = users.find((user) => user.email === email);
 
   if (userExists) {
-    // bad request
     return res.status(400).json({ message: "User already exists" });
   }
 
-  // create new user
-  const user = await User.create({
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const newUser = {
+    id: crypto.randomUUID(),
     name,
     email,
-    password,
-  });
+    password: hashedPassword,
+    role: "user",
+    photo: "",
+    bio: "",
+    isVerified: false,
+  };
 
-  // generate token with user id
-  const token = generateToken(user._id);
+  users.push(newUser);
+  await writeUsersToFile(users);
 
-  // send back the user and token in the response to the client
+  const token = generateToken(newUser.id);
+
   res.cookie("token", token, {
     path: "/",
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: "none", // cross-site access --> allow all third-party cookies
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    sameSite: "none",
     secure: false,
   });
 
-  if (user) {
-    const { _id, name, email, role, photo, bio, isVerified } = user;
-
-    // 201 Created
-    res.status(201).json({
-      _id,
-      name,
-      email,
-      role,
-      photo,
-      bio,
-      isVerified,
-      token,
-    });
-  } else {
-    res.status(400).json({ message: "Invalid user data" });
-  }
+  res.status(201).json({
+    ...newUser,
+    token,
+  });
 });
 
-// user login
+// **ورود به سیستم**
 export const loginUser = asyncHandler(async (req, res) => {
-  // get email and password from req.body
   const { email, password } = req.body;
 
-  // validation
   if (!email || !password) {
-    // 400 Bad Request
     return res.status(400).json({ message: "All fields are required" });
   }
 
-  // check if user exists
-  const userExists = await User.findOne({ email });
+  const users = await readUsersFromFile();
+  const user = users.find((u) => u.email === email);
 
-  if (!userExists) {
+  if (!user) {
     return res.status(404).json({ message: "User not found, sign up!" });
   }
 
-  // check id the password match the hashed password in the database
-  const isMatch = await bcrypt.compare(password, userExists.password);
+  const isMatch = await bcrypt.compare(password, user.password);
 
   if (!isMatch) {
-    // 400 Bad Request
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
-  // generate token with user id
-  const token = generateToken(userExists._id);
+  const token = generateToken(user.id);
 
-  if (userExists && isMatch) {
-    const { _id, name, email, role, photo, bio, isVerified } = userExists;
+  res.cookie("token", token, {
+    path: "/",
+    httpOnly: true,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+    sameSite: "none",
+    secure: true,
+  });
 
-    // set the token in the cookie
-    res.cookie("token", token, {
-      path: "/",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: "none", // cross-site access --> allow all third-party cookies
-      secure: true,
-    });
-
-    // send back the user and token in the response to the client
-    res.status(200).json({
-      _id,
-      name,
-      email,
-      role,
-      photo,
-      bio,
-      isVerified,
-      token,
-    });
-  } else {
-    res.status(400).json({ message: "Invalid email or password" });
-  }
+  res.status(200).json({
+    ...user,
+    token,
+  });
 });
 
-// logout user
+// **خروج از سیستم**
 export const logoutUser = asyncHandler(async (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
@@ -139,161 +132,95 @@ export const logoutUser = asyncHandler(async (req, res) => {
   res.status(200).json({ message: "User logged out" });
 });
 
-// get user
+// **دریافت اطلاعات کاربر**
 export const getUser = asyncHandler(async (req, res) => {
-  // get user details from the token ----> exclude password
-  const user = await User.findById(req.user._id).select("-password");
-
-  if (user) {
-    res.status(200).json(user);
-  } else {
-    // 404 Not Found
-    res.status(404).json({ message: "User not found" });
-  }
-});
-
-// update user
-export const updateUser = asyncHandler(async (req, res) => {
-  // get user details from the token ----> protect middleware
-  const user = await User.findById(req.user._id);
-
-  if (user) {
-    // user properties to update
-    const { name, bio, photo } = req.body;
-    // update user properties
-    user.name = req.body.name || user.name;
-    user.bio = req.body.bio || user.bio;
-    user.photo = req.body.photo || user.photo;
-
-    const updated = await user.save();
-
-    res.status(200).json({
-      _id: updated._id,
-      name: updated.name,
-      email: updated.email,
-      role: updated.role,
-      photo: updated.photo,
-      bio: updated.bio,
-      isVerified: updated.isVerified,
-    });
-  } else {
-    // 404 Not Found
-    res.status(404).json({ message: "User not found" });
-  }
-});
-
-// login status
-export const userLoginStatus = asyncHandler(async (req, res) => {
   const token = req.cookies.token;
 
   if (!token) {
-    // 401 Unauthorized
-    res.status(401).json({ message: "Not authorized, please login!" });
+    return res.status(401).json({ message: "Not authorized, please login!" });
   }
-  // verify the token
+
   const decoded = jwt.verify(token, "mysecretkey");
-""
-  if (decoded) {
-    res.status(200).json(true);
+
+  const users = await readUsersFromFile();
+  const user = users.find((u) => u.id === decoded.id);
+
+  if (user) {
+    const { password, ...userWithoutPassword } = user;
+    res.status(200).json(userWithoutPassword);
   } else {
-    res.status(401).json(false);
+    res.status(404).json({ message: "User not found" });
   }
 });
 
-// email verification
-export const verifyEmail = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
+// **به‌روزرسانی اطلاعات کاربر**
+export const updateUser = asyncHandler(async (req, res) => {
+  const token = req.cookies.token;
 
-  // if user exists
+  if (!token) {
+    return res.status(401).json({ message: "Not authorized, please login!" });
+  }
+
+  const decoded = jwt.verify(token, "mysecretkey");
+
+  const users = await readUsersFromFile();
+  const userIndex = users.findIndex((u) => u.id === decoded.id);
+
+  if (userIndex === -1) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const updatedUser = {
+    ...users[userIndex],
+    ...req.body,
+  };
+
+  users[userIndex] = updatedUser;
+  await writeUsersToFile(users);
+
+  res.status(200).json(updatedUser);
+});
+
+// **تغییر رمز عبور**
+export const changePassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: "Password must be at least 6 characters" });
+  }
+
+  const token = req.cookies.token;
+
+  if (!token) {
+    return res.status(401).json({ message: "Not authorized, please login!" });
+  }
+
+  const decoded = jwt.verify(token, "mysecretkey");
+
+  const users = await readUsersFromFile();
+  const user = users.find((u) => u.id === decoded.id);
+
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
 
-  // check if user is already verified
-  if (user.isVerified) {
-    return res.status(400).json({ message: "User is already verified" });
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+
+  if (!isMatch) {
+    return res.status(400).json({ message: "Old password is incorrect" });
   }
 
-  let token = await Token.findOne({ userId: user._id });
+  user.password = await bcrypt.hash(newPassword, 10);
+  await writeUsersToFile(users);
 
-  // if token exists --> delete the token
-  if (token) {
-    await token.deleteOne();
-  }
-
-  // create a verification token using the user id --->
-  const verificationToken = crypto.randomBytes(64).toString("hex") + user._id;
-
-  // hast the verification token
-  const hashedToken = hashToken(verificationToken);
-
-  await new Token({
-    userId: user._id,
-    verificationToken: hashedToken,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24 hours
-  }).save();
-
-  // verification link
-  const verificationLink = `${"http://localhost:3000"}/verify-email/${verificationToken}`;
-
-  // send email
-  const subject = "Email Verification - AuthKit";
-  const send_to = user.email;
-  const reply_to = "noreply@gmail.com";
-  const template = "emailVerification";
-  const send_from = process.env.USER_EMAIL;
-  const name = user.name;
-  const url = verificationLink;
-
-  try {
-    // order matters ---> subject, send_to, send_from, reply_to, template, name, url
-    await sendEmail(subject, send_to, send_from, reply_to, template, name, url);
-    return res.json({ message: "Email sent" });
-  } catch (error) {
-    console.log("Error sending email: ", error);
-    return res.status(500).json({ message: "Email could not be sent" });
-  }
+  res.status(200).json({ message: "Password changed successfully" });
 });
 
-// verify user
-export const verifyUser = asyncHandler(async (req, res) => {
-  const { verificationToken } = req.params;
-
-  if (!verificationToken) {
-    return res.status(400).json({ message: "Invalid verification token" });
-  }
-  // hash the verification token --> because it was hashed before saving
-  const hashedToken = hashToken(verificationToken);
-
-  // find user with the verification token
-  const userToken = await Token.findOne({
-    verificationToken: hashedToken,
-    // check if the token has not expired
-    expiresAt: { $gt: Date.now() },
-  });
-
-  if (!userToken) {
-    return res
-      .status(400)
-      .json({ message: "Invalid or expired verification token" });
-  }
-
-  //find user with the user id in the token
-  const user = await User.findById(userToken.userId);
-
-  if (user.isVerified) {
-    // 400 Bad Request
-    return res.status(400).json({ message: "User is already verified" });
-  }
-
-  // update user to verified
-  user.isVerified = true;
-  await user.save();
-  res.status(200).json({ message: "User verified" });
-});
-
-// forgot password
+// **فراموشی رمز عبور**
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -301,57 +228,25 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Email is required" });
   }
 
-  // check if user exists
-  const user = await User.findOne({ email });
+  const users = await readUsersFromFile();
+  const user = users.find((u) => u.email === email);
 
   if (!user) {
-    // 404 Not Found
     return res.status(404).json({ message: "User not found" });
   }
 
-  // see if reset token exists
-  let token = await Token.findOne({ userId: user._id });
+  // Create a password reset token (for demonstration)
+  const resetToken = crypto.randomBytes(20).toString("hex");
 
-  // if token exists --> delete the token
-  if (token) {
-    await token.deleteOne();
-  }
+  user.resetPasswordToken = resetToken;
+  user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
 
-  // create a reset token using the user id ---> expires in 1 hour
-  const passwordResetToken = crypto.randomBytes(64).toString("hex") + user._id;
+  await writeUsersToFile(users);
 
-  // hash the reset token
-  const hashedToken = hashToken(passwordResetToken);
-
-  await new Token({
-    userId: user._id,
-    passwordResetToken: hashedToken,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
-  }).save();
-
-  // reset link
-  const resetLink = `${"http://localhost:3000"}/reset-password/${passwordResetToken}`;
-
-  // send email to user
-  const subject = "Password Reset - AuthKit";
-  const send_to = user.email;
-  const send_from = process.env.USER_EMAIL;
-  const reply_to = "noreply@noreply.com";
-  const template = "forgotPassword";
-  const name = user.name;
-  const url = resetLink;
-
-  try {
-    await sendEmail(subject, send_to, send_from, reply_to, template, name, url);
-    res.json({ message: "Email sent" });
-  } catch (error) {
-    console.log("Error sending email: ", error);
-    return res.status(500).json({ message: "Email could not be sent" });
-  }
+  res.status(200).json({ message: "Password reset token sent" });
 });
 
-// reset password
+// **ریست کردن رمز عبور**
 export const resetPassword = asyncHandler(async (req, res) => {
   const { resetPasswordToken } = req.params;
   const { password } = req.body;
@@ -360,54 +255,82 @@ export const resetPassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Password is required" });
   }
 
-  // hash the reset token
-  const hashedToken = hashToken(resetPasswordToken);
+  const users = await readUsersFromFile();
+  const user = users.find(
+    (u) =>
+      u.resetPasswordToken === resetPasswordToken &&
+      u.resetPasswordExpires > Date.now()
+  );
 
-  // check if token exists and has not expired
-  const userToken = await Token.findOne({
-    passwordResetToken: hashedToken,
-    // check if the token has not expired
-    expiresAt: { $gt: Date.now() },
-  });
-
-  if (!userToken) {
-    return res.status(400).json({ message: "Invalid or expired reset token" });
+  if (!user) {
+    return res.status(400).json({ message: "Invalid or expired token" });
   }
 
-  // find user with the user id in the token
-  const user = await User.findById(userToken.userId);
+  user.password = await bcrypt.hash(password, 10);
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
 
-  // update user password
-  user.password = password;
-  await user.save();
+  await writeUsersToFile(users);
 
   res.status(200).json({ message: "Password reset successfully" });
 });
 
-// change password
-export const changePassword = asyncHandler(async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+// **وضعیت ورود**
+export const userLoginStatus = asyncHandler(async (req, res) => {
+  const token = req.cookies.token;
 
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ message: "All fields are required" });
+  if (!token) {
+    return res.status(200).json({ loggedIn: false });
   }
 
-  //find user by id
-  const user = await User.findById(req.user._id);
+  try {
+    jwt.verify(token, "mysecretkey");
+    res.status(200).json({ loggedIn: true });
+  } catch (error) {
+    res.status(200).json({ loggedIn: false });
+  }
+});
 
-  // compare current password with the hashed password in the database
-  const isMatch = await bcrypt.compare(currentPassword, user.password);
+// **تایید ایمیل**
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body;
 
-  if (!isMatch) {
-    return res.status(400).json({ message: "Invalid password!" });
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
   }
 
-  // reset password
-  if (isMatch) {
-    user.password = newPassword;
-    await user.save();
-    return res.status(200).json({ message: "Password changed successfully" });
-  } else {
-    return res.status(400).json({ message: "Password could not be changed!" });
+  const users = await readUsersFromFile();
+  const user = users.find((u) => u.email === email);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
   }
+
+  user.isVerified = true;
+
+  await writeUsersToFile(users);
+
+  res.status(200).json({ message: "Email verified successfully" });
+});
+
+// **تایید کاربر با کد تایید ایمیل**
+export const verifyUser = asyncHandler(async (req, res) => {
+  const { verificationToken } = req.params;
+
+  if (!verificationToken) {
+    return res.status(400).json({ message: "Verification token is required" });
+  }
+
+  const users = await readUsersFromFile();
+  const user = users.find((u) => u.id === verificationToken);
+
+  if (!user) {
+    return res.status(400).json({ message: "Invalid token" });
+  }
+
+  user.isVerified = true;
+
+  await writeUsersToFile(users);
+
+  res.status(200).json({ message: "User verified successfully" });
 });
