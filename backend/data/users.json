@@ -20,5 +20,15 @@
     "photo": "",
     "bio": "",
     "isVerified": false
+  },
+  {
+    "id": "47df688d-af8f-498d-b78e-c97a43be574d",
+    "name": "treader",
+    "email": "fs@example.com",
+    "password": "$2b$10$XJz4jhZf4zN9NLhBm7mz9.z5YfaVnPvDaFZA2VNS/RScgk0YCgT56",
+    "role": "user",
+    "photo": "",
+    "bio": "",
+    "isVerified": false
   }
 ]
