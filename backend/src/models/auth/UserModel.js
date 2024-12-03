@@ -35,8 +35,8 @@ const UserSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["user", "admin", "creator"],
-      default: "user",
+      enum: ["admin", "supervisor", "employee"], // تغییر مقادیر برای سطوح دسترسی
+      default: "employee", // به عنوان پیش‌فرض، همه کاربران جدید به عنوان کارمند تعریف می‌شوند
     },
 
     isVerified: {

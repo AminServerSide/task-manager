@@ -24,34 +24,35 @@ import {
 
 const router = express.Router();
 
+// عمومی
 router.post("/register", registerUser);
 router.post("/login", loginUser);
 router.get("/logout", logoutUser);
 router.get("/user", protect, getUser);
 router.patch("/user", protect, updateUser);
 
-// admin route
+// ادمین
 router.delete("/admin/users/:id", protect, adminMiddleware, deleteUser);
 
-// get all users
+// دریافت تمام کاربران
 router.get("/admin/users", protect, creatorMiddleware, getAllUsers);
 
-// login status
+// وضعیت لاگین
 router.get("/login-status", userLoginStatus);
 
-// email verification
+// تایید ایمیل
 router.post("/verify-email", protect, verifyEmail);
 
-// veriify user --> email verification
+// تایید کاربر --> تایید ایمیل
 router.post("/verify-user/:verificationToken", verifyUser);
 
-// forgot password
+// فراموشی رمز عبور
 router.post("/forgot-password", forgotPassword);
 
-//reset password
+// بازنشانی رمز عبور
 router.post("/reset-password/:resetPasswordToken", resetPassword);
 
-// change password ---> user must be logged in
+// تغییر رمز عبور --> فقط برای کاربران وارد شده
 router.patch("/change-password", protect, changePassword);
 
 export default router;
