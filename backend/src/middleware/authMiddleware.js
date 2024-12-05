@@ -44,6 +44,18 @@ export const adminMiddleware = asyncHandler(async (req, res, next) => {
   res.status(403).json({ message: "Only admins can do this!" });
 });
 
+// admin or supervisor middleware
+export const adminOrSupervisorMiddleware = asyncHandler(async (req, res, next) => {
+  if (req.user && (req.user.role === "admin" || req.user.role === "supervisor")) {
+    // if user is admin or supervisor, move to the next middleware/controller
+    next();
+    return;
+  }
+  // if not admin or supervisor, send 403 Forbidden --> terminate the request
+  res.status(403).json({ message: "Only admins or supervisors can do this!" });
+});
+
+// creator middleware
 export const creatorMiddleware = asyncHandler(async (req, res, next) => {
   if (
     (req.user && req.user.role === "creator") ||
