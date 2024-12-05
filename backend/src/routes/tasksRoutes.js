@@ -6,15 +6,19 @@ import {
   getTasks,
   updateTask,
 } from "../controllers/task/taskController.js";
-import { protect, adminOrSupervisorMiddleware } from "../middleware/authMiddleware.js"; // اضافه کردن میانه‌افزار
+import { protect, adminOrSupervisorMiddleware } from "../middleware/authMiddleware.js"; 
 
 const router = express.Router();
 
-// استفاده از میانه‌افزار برای محدود کردن دسترسی به ایجاد و به‌روزرسانی تسک‌ها
-router.post("/task/create", protect, adminOrSupervisorMiddleware, createTask); // فقط admin و supervisor
+// Use middleware to restrict access to create and update tasks
+// only admin and supervisor have access
+router.post("/task/create", protect, adminOrSupervisorMiddleware, createTask); 
 router.get("/tasks", protect, getTasks);
 router.get("/task/:id", protect, getTask);
-router.patch("/task/:id", protect, adminOrSupervisorMiddleware, updateTask); // فقط admin و supervisor
-router.delete("/task/:id", protect, adminOrSupervisorMiddleware, deleteTask); // فقط admin و supervisor
+
+// only admin and supervisor have access
+router.patch("/task/:id", protect, adminOrSupervisorMiddleware, updateTask); 
+// only admin and supervisor have access
+router.delete("/task/:id", protect, adminOrSupervisorMiddleware, deleteTask); 
 
 export default router;

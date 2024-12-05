@@ -11,6 +11,7 @@ const checkAdminOrSupervisor = (req, res, next) => {
   }
 };
 
+// Handler to create a new task
 export const createTask = asyncHandler(async (req, res) => {
   try {
     const { title, description, dueDate, priority, status } = req.body;
@@ -41,6 +42,7 @@ export const createTask = asyncHandler(async (req, res) => {
   }
 });
 
+// Handler to get all tasks for a user
 export const getTasks = asyncHandler(async (req, res) => {
   try {
     const userId = req.user._id;

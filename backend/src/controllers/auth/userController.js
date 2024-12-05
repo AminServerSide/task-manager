@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import hashToken from "../../helpers/hashToken.js";
 import sendEmail from "../../helpers/sendEmail.js";
 
-// تابع تعیین نقش
+// funvtion for choose role 
 function determineRole(code) {
   if (code === '1111') {
     return 'employee';
@@ -17,49 +17,49 @@ function determineRole(code) {
   } else if (code === '3333') {
     return 'admin';
   } else {
-    return 'user';  // پیش‌فرض اگر کد معتبر نبود
+    return 'user';  // default 
   }
 }
 
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, code } = req.body;
 
-  // اعتبارسنجی
+  // validation
   if (!name || !email || !password || !code) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
-  // بررسی طول رمز عبور
+  // checking length of the password. it must be more that 6 charecters
   if (password && password.length < 6) {
     return res.status(400).json({ message: "Password must be at least 6 characters" });
   }
 
-  // بررسی اینکه کاربر از قبل وجود داشته باشد
+  // checking if user exist before
   const userExists = await User.findOne({ email });
 
   if (userExists) {
     return res.status(400).json({ message: "User already exists" });
   }
 
-  // تعیین نقش کاربر بر اساس کد ورودی
+  // Determining the role of the user based on the input code
   const role = determineRole(code);
 
-  // ایجاد کاربر جدید
+  // creating new user
   const user = await User.create({
     name,
     email,
     password,
-    role,  // نقش تعیین‌شده
+    role,  // assigned role
   });
 
-  // تولید توکن برای کاربر
+  // creating token for user
   const token = generateToken(user._id);
 
-  // ارسال توکن در کوکی
+  // send the token in cookie
   res.cookie("token", token, {
     path: "/",
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 روز
+    maxAge: 30 * 24 * 60 * 60 * 1000, 
     sameSite: "none",
     secure: false,
   });
@@ -67,7 +67,6 @@ export const registerUser = asyncHandler(async (req, res) => {
   if (user) {
     const { _id, name, email, role, photo, bio, isVerified } = user;
 
-    // ارسال اطلاعات کاربر و توکن در پاسخ
     res.status(201).json({
       _id,
       name,
