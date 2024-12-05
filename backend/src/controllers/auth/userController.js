@@ -8,53 +8,66 @@ import crypto from "node:crypto";
 import hashToken from "../../helpers/hashToken.js";
 import sendEmail from "../../helpers/sendEmail.js";
 
+// تابع تعیین نقش
+function determineRole(code) {
+  if (code === '1111') {
+    return 'employee';
+  } else if (code === '2222') {
+    return 'supervisor';
+  } else if (code === '3333') {
+    return 'admin';
+  } else {
+    return 'user';  // پیش‌فرض اگر کد معتبر نبود
+  }
+}
+
 export const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, code } = req.body;
 
-  //validation
-  if (!name || !email || !password) {
-    // 400 Bad Request
-    res.status(400).json({ message: "All fields are required" });
+  // اعتبارسنجی
+  if (!name || !email || !password || !code) {
+    return res.status(400).json({ message: "All fields are required" });
   }
 
-  // check password length
-  if (password.length < 6) {
-    return res
-      .status(400)
-      .json({ message: "Password must be at least 6 characters" });
+  // بررسی طول رمز عبور
+  if (password && password.length < 6) {
+    return res.status(400).json({ message: "Password must be at least 6 characters" });
   }
 
-  // check if user already exists
+  // بررسی اینکه کاربر از قبل وجود داشته باشد
   const userExists = await User.findOne({ email });
 
   if (userExists) {
-    // bad request
     return res.status(400).json({ message: "User already exists" });
   }
 
-  // create new user
+  // تعیین نقش کاربر بر اساس کد ورودی
+  const role = determineRole(code);
+
+  // ایجاد کاربر جدید
   const user = await User.create({
     name,
     email,
     password,
+    role,  // نقش تعیین‌شده
   });
 
-  // generate token with user id
+  // تولید توکن برای کاربر
   const token = generateToken(user._id);
 
-  // send back the user and token in the response to the client
+  // ارسال توکن در کوکی
   res.cookie("token", token, {
     path: "/",
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: "none", // cross-site access --> allow all third-party cookies
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 روز
+    sameSite: "none",
     secure: false,
   });
 
   if (user) {
     const { _id, name, email, role, photo, bio, isVerified } = user;
 
-    // 201 Created
+    // ارسال اطلاعات کاربر و توکن در پاسخ
     res.status(201).json({
       _id,
       name,
@@ -69,6 +82,10 @@ export const registerUser = asyncHandler(async (req, res) => {
     res.status(400).json({ message: "Invalid user data" });
   }
 });
+
+
+
+
 
 // user login
 export const loginUser = asyncHandler(async (req, res) => {

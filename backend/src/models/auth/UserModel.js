@@ -10,7 +10,7 @@ const UserSchema = new mongoose.Schema(
 
     email: {
       type: String,
-      required: [true, "Please an email"],
+      required: [true, "Please provide an email"],
       unique: true,
       trim: true,
       match: [
@@ -20,7 +20,7 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Please add password!"],
+      required: [true, "Please add a password!"],
     },
 
     photo: {
@@ -35,8 +35,8 @@ const UserSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "supervisor", "employee"], // تغییر مقادیر برای سطوح دسترسی
-      default: "employee", // به عنوان پیش‌فرض، همه کاربران جدید به عنوان کارمند تعریف می‌شوند
+      enum: ["admin", "supervisor", "employee"],
+      default: "employee", // default is employee unless specified during registration
     },
 
     isVerified: {
@@ -54,7 +54,7 @@ UserSchema.pre("save", async function (next) {
     return next();
   }
 
-  // hash the password  ==> bcrypt
+  // hash the password ==> bcrypt
   // generate salt
   const salt = await bcrypt.genSalt(10);
   // hash the password with the salt
@@ -65,6 +65,23 @@ UserSchema.pre("save", async function (next) {
   // call the next middleware
   next();
 });
+
+// Function to set role based on registration code (added)
+UserSchema.methods.setRoleBasedOnCode = function (code) {
+  switch (code) {
+    case "1111":
+      this.role = "employee";
+      break;
+    case "2222":
+      this.role = "supervisor";
+      break;
+    case "3333":
+      this.role = "admin";
+      break;
+    default:
+      this.role = "employee"; // default role is employee
+  }
+};
 
 const User = mongoose.model("User", UserSchema);
 
