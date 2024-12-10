@@ -427,3 +427,11 @@ export const changePassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Password could not be changed!" });
   }
 });
+
+
+// اضافه کردن مسیر GET برای صفحه لاگین
+export const getLoginPage = (req, res) => {
+  res.render("login", { error: null }); // می‌توانید متغیر خطا را اینجا ارسال کنید
+};
+
+

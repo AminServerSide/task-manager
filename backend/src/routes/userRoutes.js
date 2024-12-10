@@ -24,8 +24,31 @@ import {
 
 const router = express.Router();
 
-// general commands for all users
+// مسیر جدید برای نمایش فرم ثبت‌نام
+router.get("/register", (req, res) => {
+  res.render("register"); // نمایش صفحه register.ejs
+});
+
+router.get("/login", (req, res) => {
+  res.render("login"); // نمایش صفحه register.ejs
+});
+
+router.get("/admin", (req, res) => {
+  res.render("admin"); // نمایش صفحه register.ejs
+});
+
+router.get("/supervisor", (req, res) => {
+  res.render("supervisor"); // نمایش صفحه register.ejs
+});
+
+router.get("/employee", (req, res) => {
+  res.render("employee"); // نمایش صفحه register.ejs
+});
+
+// مسیر جدید برای پردازش ثبت‌نام کاربر
 router.post("/register", registerUser);
+
+// general commands for all users
 router.post("/login", loginUser);
 router.get("/logout", logoutUser);
 router.get("/user", protect, getUser);
