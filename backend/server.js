@@ -6,6 +6,7 @@ import connect from "./src/db/connect.js";
 import cookieParser from "cookie-parser";
 import fs from "node:fs";
 import errorHandler from "./src/helpers/errorhandler.js";
+import taskRoutes from "./src/routes/tasksRoutes.js";
 
 dotenv.config();
 
@@ -15,7 +16,8 @@ const app = express();
 
 // تنظیم EJS
 app.set("view engine", "ejs");
-app.set("views", path.join(path.resolve(), "src", "views"));
+app.set("views", "./src/views");
+
 
 // تنظیم استاتیک برای فایل‌های عمومی
 app.use(express.static(path.join(path.resolve(), "src", "public")));
@@ -55,6 +57,9 @@ app.use("/users", userRoutes);
 
 import tasksRoutes from "./src/routes/tasksRoutes.js";
 app.use("/tasks", tasksRoutes);
+
+app.use(taskRoutes);  // Add task routes
+
 
 const server = async () => {
   try {

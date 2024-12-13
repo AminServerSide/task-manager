@@ -16,12 +16,6 @@ router.post("/task/create", protect, adminOrSupervisorMiddleware, createTask);
 router.get("/tasks", protect, getTasks);
 router.get("/task/:id", protect, getTask);
 
-
-router.get("/task", (req, res) => {
-  res.render("task"); // نمایش صفحه register.ejs
-});
-
-
 // only admin and supervisor have access
 router.patch("/task/:id", protect, adminOrSupervisorMiddleware, updateTask); 
 // only admin and supervisor have access

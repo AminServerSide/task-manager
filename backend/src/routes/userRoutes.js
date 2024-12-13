@@ -33,18 +33,6 @@ router.get("/login", (req, res) => {
   res.render("login"); // نمایش صفحه register.ejs
 });
 
-router.get("/admin", (req, res) => {
-  res.render("admin"); // نمایش صفحه register.ejs
-});
-
-router.get("/supervisor", (req, res) => {
-  res.render("supervisor"); // نمایش صفحه register.ejs
-});
-
-router.get("/employee", (req, res) => {
-  res.render("employee"); // نمایش صفحه register.ejs
-});
-
 // مسیر جدید برای پردازش ثبت‌نام کاربر
 router.post("/register", registerUser);
 
@@ -77,5 +65,10 @@ router.post("/reset-password/:resetPasswordToken", resetPassword);
 
 // changing password
 router.patch("/change-password", protect, changePassword);
+
+router.delete("/users/:id", adminMiddleware, deleteUser);
+
+// get all users(only for admins)
+router.get("/users", adminMiddleware, getAllUsers);
 
 export default router;
