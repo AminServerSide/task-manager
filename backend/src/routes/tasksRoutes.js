@@ -13,7 +13,16 @@ const router = express.Router();
 // Use middleware to restrict access to create and update tasks
 // only admin and supervisor have access
 router.post("/task/create", protect, adminOrSupervisorMiddleware, createTask); 
-router.get("/tasks", protect, getTasks);
+
+router.post("/tasks", protect, getTask);
+
+
+router.get('/tasks', (req, res) => {
+  res.render('/tasks');
+});
+
+
+
 router.get("/task/:id", protect, getTask);
 
 // only admin and supervisor have access
