@@ -24,51 +24,68 @@ import {
 
 const router = express.Router();
 
-// مسیر جدید برای نمایش فرم ثبت‌نام
+/**
+ * Routes for User Authentication and Management
+ */
+
+// Render Registration Page
 router.get("/register", (req, res) => {
-  res.render("register"); // نمایش صفحه register.ejs
+  res.render("register"); // Render the registration form (register.ejs)
 });
 
+// Render Login Page
 router.get("/login", (req, res) => {
-  res.render("login"); // نمایش صفحه register.ejs
+  res.render("login"); // Render the login form (login.ejs)
 });
 
-// مسیر جدید برای پردازش ثبت‌نام کاربر
+// User Registration
 router.post("/register", registerUser);
 
-// general commands for all users
+// User Login
 router.post("/login", loginUser);
+
+// User Logout
 router.get("/logout", logoutUser);
+
+// Get Logged-in User Info
 router.get("/user", protect, getUser);
+
+// Update Logged-in User Info
 router.patch("/user", protect, updateUser);
 
-// admin
-router.delete("/admin/users/:id", protect, adminMiddleware, deleteUser);
-
-// get all users
-router.get("/admin/users", protect, creatorMiddleware, getAllUsers);
-
-// login status
-router.get("/login-status", userLoginStatus);
-
-// verify-email
-router.post("/verify-email", protect, verifyEmail);
-
-// verify user and email
-router.post("/verify-user/:verificationToken", verifyUser);
-
-// forgotting password
-router.post("/forgot-password", forgotPassword);
-
-// reset password
-router.post("/reset-password/:resetPasswordToken", resetPassword);
-
-// changing password
+// Change Password for Logged-in User
 router.patch("/change-password", protect, changePassword);
 
-router.delete("/users/:id", adminMiddleware, deleteUser);
+// Forgot Password - Request Reset Link
+router.post("/forgot-password", forgotPassword);
 
-// get all users(only for admins)
-router.get("/users", adminMiddleware, getAllUsers);
+// Reset Password using Token
+router.post("/reset-password/:resetPasswordToken", resetPassword);
+
+// Verify Email Address for Logged-in User
+router.post("/verify-email", protect, verifyEmail);
+
+// Verify User with Token (e.g., during registration or email update)
+router.post("/verify-user/:verificationToken", verifyUser);
+
+// Check User Login Status
+router.get("/login-status", userLoginStatus);
+
+/**
+ * Admin-Specific Routes
+ */
+
+// Delete User (Admin Only)
+router.delete("/admin/users/:id", protect, adminMiddleware, deleteUser);
+
+// Get All Users (Admin Only)
+router.get("/admin/users", protect, adminMiddleware, getAllUsers);
+
+/**
+ * Creator-Specific Routes
+ */
+
+// Get All Users (Creator Access Only)
+router.get("/users", protect, creatorMiddleware, getAllUsers);
 
 export default router;
