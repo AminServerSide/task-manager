@@ -6,19 +6,56 @@ import {
   getTasks,
   updateTask,
 } from "../controllers/task/taskController.js";
-import { protect, adminOrSupervisorMiddleware } from "../middleware/authMiddleware.js"; 
+import {
+  protect,
+  adminOrSupervisorMiddleware,
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// Use middleware to restrict access to create and update tasks
-// only admin and supervisor have access
-router.post("/task/create", protect, adminOrSupervisorMiddleware, createTask); 
+/**
+ * Task Routes
+ * Middleware: 
+ * - `protect`: Ensures the user is authenticated.
+ * - `adminOrSupervisorMiddleware`: Restricts access to Admin or Supervisor roles only.
+ */
+
+/** 
+ * Render Task Page
+ * This route renders the task management page.
+ */
+router.get("/tasks", (req, res) => {
+  res.render("tasks"); // Render the tasks page (tasks.ejs)
+});
+
+/** 
+ * Create a New Task
+ * Only Admins and Supervisors are allowed to create tasks.
+ */
+router.post("/task/create", protect, adminOrSupervisorMiddleware, createTask);
+
+/** 
+ * Get All Tasks
+ * Accessible by any authenticated user.
+ */
 router.get("/tasks", protect, getTasks);
+
+/** 
+ * Get a Single Task by ID
+ * Accessible by any authenticated user.
+ */
 router.get("/task/:id", protect, getTask);
 
-// only admin and supervisor have access
-router.patch("/task/:id", protect, adminOrSupervisorMiddleware, updateTask); 
-// only admin and supervisor have access
-router.delete("/task/:id", protect, adminOrSupervisorMiddleware, deleteTask); 
+/** 
+ * Update an Existing Task
+ * Only Admins and Supervisors are allowed to update tasks.
+ */
+router.patch("/task/:id", protect, adminOrSupervisorMiddleware, updateTask);
+
+/** 
+ * Delete a Task by ID
+ * Only Admins and Supervisors are allowed to delete tasks.
+ */
+router.delete("/task/:id", protect, adminOrSupervisorMiddleware, deleteTask);
 
 export default router;

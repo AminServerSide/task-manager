@@ -24,63 +24,70 @@ function determineRole(code) {
 export const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, code } = req.body;
 
-  // validation
+  // Validation
   if (!name || !email || !password || !code) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
-  // checking length of the password. it must be more that 6 charecters
+  // Checking password length
   if (password && password.length < 6) {
     return res.status(400).json({ message: "Password must be at least 6 characters" });
   }
 
-  // checking if user exist before
+  // Checking if user already exists
   const userExists = await User.findOne({ email });
-
   if (userExists) {
     return res.status(400).json({ message: "User already exists" });
   }
 
   // Determining the role of the user based on the input code
-  const role = determineRole(code);
+  let role;
+  if (code === "1111") {
+    role = "employee";
+  } else if (code === "2222") {
+    role = "supervisor";
+  } else if (code === "3333") {
+    role = "admin";
+  } else {
+    return res.status(400).json({ message: "Invalid code. Please provide a valid code." });
+  }
 
-  // creating new user
+  // Creating new user
   const user = await User.create({
     name,
     email,
     password,
-    role,  // assigned role
+    role, // Assigned role
   });
 
-  // creating token for user
+  // Creating token for the user
   const token = generateToken(user._id);
 
-  // send the token in cookie
+  // Sending the token in a cookie
   res.cookie("token", token, {
     path: "/",
     httpOnly: true,
-    maxAge: 30 * 24 * 60 * 60 * 1000, 
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     sameSite: "none",
-    secure: false,
+    secure: process.env.NODE_ENV === "production",
   });
 
   if (user) {
-    const { _id, name, email, role, photo, bio, isVerified } = user;
+    const { _id, name, email, role } = user;
 
-    res.status(201).json({
-      _id,
-      name,
-      email,
-      role,
-      photo,
-      bio,
-      isVerified,
-      token,
-    });
+    // Redirecting to the corresponding dashboard based on the role
+    if (role === "employee") {
+      return res.render("employee", { name, email });
+    } else if (role === "supervisor") {
+      return res.render("supervisor", { name, email });
+    } else if (role === "admin") {
+      return res.render("admin", { name, email });
+    }
   } else {
     res.status(400).json({ message: "Invalid user data" });
   }
 });
+
 
 
 
@@ -93,7 +100,6 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   // validation
   if (!email || !password) {
-    // 400 Bad Request
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -104,11 +110,10 @@ export const loginUser = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "User not found, sign up!" });
   }
 
-  // check id the password match the hashed password in the database
+  // check if the password matches the hashed password in the database
   const isMatch = await bcrypt.compare(password, userExists.password);
 
   if (!isMatch) {
-    // 400 Bad Request
     return res.status(400).json({ message: "Invalid credentials" });
   }
 
@@ -124,8 +129,17 @@ export const loginUser = asyncHandler(async (req, res) => {
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       sameSite: "none", // cross-site access --> allow all third-party cookies
-      secure: true,
+      secure: process.env.NODE_ENV === "production", // secure flag based on environment
     });
+
+    // Redirect user to their respective dashboard based on role
+    if (role === "employee") {
+      return res.render("employee", { name, email });
+    } else if (role === "supervisor") {
+      return res.render("supervisor", { name, email });
+    } else if (role === "admin") {
+      return res.render("admin", { name, email });
+    }
 
     // send back the user and token in the response to the client
     res.status(200).json({
@@ -142,6 +156,7 @@ export const loginUser = asyncHandler(async (req, res) => {
     res.status(400).json({ message: "Invalid email or password" });
   }
 });
+
 
 // logout user
 export const logoutUser = asyncHandler(async (req, res) => {
@@ -427,3 +442,11 @@ export const changePassword = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Password could not be changed!" });
   }
 });
+
+
+// اضافه کردن مسیر GET برای صفحه لاگین
+export const getLoginPage = (req, res) => {
+  res.render("login", { error: null }); // می‌توانید متغیر خطا را اینجا ارسال کنید
+};
+
+
